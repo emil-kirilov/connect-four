@@ -1,4 +1,4 @@
-defmodule ConnectFour.Game.GameSession do
+defmodule ConnectFour.Game.Board do
   use GenServer
   use Tensor
 
