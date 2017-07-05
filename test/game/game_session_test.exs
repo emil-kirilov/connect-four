@@ -1,6 +1,9 @@
 defmodule ConnectFour.Game.GameSessionTest do
   use ExUnit.Case
   use Tensor
+
+  import ExUnit.CaptureIO
+
   alias ConnectFour.Game.GameSession
 
   doctest ConnectFour
@@ -75,6 +78,38 @@ defmodule ConnectFour.Game.GameSessionTest do
       new_column = Vector.new([1,1])
 
       assert GameSession.update_board(new_column, board, 0) == Matrix.new([[1,0],[1,0]],2,2)
+    end
+  end
+
+  describe "print_row/1" do
+    test "print an empty row" do
+      fun = fn ->
+        GameSession.print_row(Vector.new([0,0])) == :ok
+      end
+      assert capture_io(fun) == "|   |   |\n- - - - - \n"
+    end
+
+    test "prints a row with occupied cells" do
+      fun = fn ->
+        GameSession.print_row(Vector.new([0,0,1,0,2,2])) == :ok
+      end
+      assert capture_io(fun) == "|   |   | x |   | o | o |\n- - - - - - - - - - - - - \n"
+    end
+  end
+
+  describe "print_board/1" do
+    test "prints the empty board" do
+      fun = fn ->
+        GameSession.print_board(Matrix.new([[0,0,0,0,0,0],[0,0,0,0,0,0]],2,6)) == :ok
+      end
+      assert capture_io(fun) == "|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n"
+    end
+
+    test "prints the board with occupied cells" do
+      fun = fn ->
+        GameSession.print_board(Matrix.new([[0,0,0,0,0,0],[0,0,1,0,2,2]],2,6)) == :ok
+      end
+      assert capture_io(fun) == "|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   | x |   | o | o |\n- - - - - - - - - - - - - \n"
     end
   end
 end
