@@ -6,10 +6,17 @@ defmodule ConnectFour.Game.Board do
   end
 
   def drop_coin(board, player, column) when is_integer(column) do
-    Matrix.columns(board) |>
-    Enum.at(column) |>
-    update_column(player) |>
-    update_board(board, column)
+    max_column = Matrix.width(board) - 1
+    cond do
+      column < 0 || column > max_column ->
+        IO.puts "The selected column (#{inspect(column)}) is not valid! Select form the range [0,#{max_column}]"
+        board
+      true ->
+        Matrix.columns(board) |>
+        Enum.at(column) |>
+        update_column(player) |>
+        update_board(board, column)
+    end
   end
 
 
