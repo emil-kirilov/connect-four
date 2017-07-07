@@ -1,60 +1,59 @@
 defmodule ConnectFour.Game.Board do
-  use GenServer
   use Tensor
-
-  def start_link do
-    GenServer.start_link(__MODULE__, [])
-  end
-
-  def init(_) do
-    board = build_board()
-    {:ok, board}
-  end
 
   def build_board() do
     Matrix.new(10,10)
   end
 
-  def drop_disc(receiver_pid, picked_column) when is_integer(picked_column) do
-    # 0 < n < Matrix.width?
-    GenServer.call(receiver_pid, {:drop_disc, picked_column})
+  def drop_coin(board, player, column) when is_integer(column) do
+    Matrix.columns(board) |>
+    Enum.at(column) |>
+    update_column(player) |>
+    update_board(board, column)
   end
 
 
-  def drop_disc(_receiver_pid, picked_column) do
-    error = "unexpected column number, received: (#{inspect(picked_column)})"
+  def drop_coin(_board, _player, column) do
+    error = "unexpected column number, received: (#{inspect(column)})"
     raise ArgumentError, error
   end
 
   # Callbacks
 
-  def handle_call({:drop_disc, picked_column}, _from, board) do
-    # ako iska da oveflowne daskata?
+  # def handle_call({:drop_coin, column}, _from, board) do
+  #   # ako iska da oveflowne daskata?
 
-    new_board = Matrix.columns(board) |>    # list of vectors
-                Enum.at(picked_column) |>   # vector
-                update_column |>            # vector
-                update_board(board, picked_column)
+  #   new_board = Matrix.columns(board) |>    # list of vectors
+  #               Enum.at(column) |>   # vector
+  #               update_column |>            # vector
+  #               update_board(board, column)
 
-    {:reply, new_board, new_board}
+  #   {:reply, new_board, new_board}
+  # end
+
+  def first_empty_index(column) do
+    length(Enum.filter(column, fn (cell) -> cell == 0 end)) - 1
   end
 
-  # The column's content is listed from the top of the board towards the bottom
-  # therefore I am inversing the row
-  def first_empty_cell(column) do
-    Vector.length(column) - 1 -
-    (Vector.reverse(column) |>
-    Enum.find_index(fn (el) -> el == 0 end))
+  def update_column(column, player) do
+    index = first_empty_index(column)
+    case index do
+      -1 ->
+        IO.puts "This column is full. Pick another one!"
+        column
+      _ ->
+        List.replace_at(
+          Vector.to_list(column),
+          index,
+          player_sign(player)
+        ) |>
+        Vector.new
+      end
   end
 
-  def update_column(column) do
-    List.replace_at(
-      Vector.to_list(column),
-      first_empty_cell(column),
-      1
-    ) |>
-    Vector.new
-  end
+  def player_sign(:cross), do: 1
+  def player_sign(:circle), do: 2
+  def player_sign(_), do: 0
 
   def update_board(new_column, board, index) do
     List.replace_at(
@@ -63,11 +62,12 @@ defmodule ConnectFour.Game.Board do
       new_column
     ) |>
     Enum.map(fn (vector) -> Vector.to_list(vector) end) |>
-    Matrix.new(Matrix.height(board),Matrix.width(board)) |> # what if they change dinamically?
+    Matrix.new(Matrix.height(board),Matrix.width(board)) |>
     Matrix.transpose
   end
 
   def print_board(board) do
+    IO.puts String.duplicate("- ", Matrix.width(board) * 2 + 1)
     for row <- Matrix.rows(board), do: print_row(row)
   end
 
@@ -85,5 +85,37 @@ defmodule ConnectFour.Game.Board do
     end)
     border_size = Vector.length(row) * 2 + 1
     IO.write "\n" <> String.duplicate("- ", border_size) <> "\n"
+  end
+
+  def who_wins?(board) do
+    cond do
+      winner_is?(:cross, board) ->
+        :cross
+      winner_is?(:circle, board) ->
+        :circle
+      true ->
+        :noone
+    end
+  end
+
+  def winner_is?(:cross, board) do
+    check_hor_and_vert(board, [1,1,1,1])
+  end
+
+  def winner_is?(:circle, board) do
+    check_hor_and_vert(board, [2,2,2,2])
+  end
+
+  def check_hor_and_vert(board, win_streak) do
+    (Matrix.columns(board) |>
+    Stream.map(fn(vector) -> Vector.to_list(vector) end) |>
+    Stream.map(fn (column) -> win_streak |> Sublist.sublist_of?(column) end) |>
+    Enum.any?(fn(bool) -> bool end) == true)
+
+    ||
+
+    (Matrix.to_list(board) |>
+    Enum.map(fn (column) -> win_streak |> Sublist.sublist_of?(column) end) |>
+    Enum.any?(fn(bool) -> bool end) == true)
   end
 end

@@ -21,29 +21,30 @@ defmodule ConnectFour.Game.BoardTest do
   end
 
   # After I make it a supervised process
-  # describe "drop_disc/2" do
+  # describe "drop_coin/2" do
   #   test "expects and integer" do
-  #     game_pid = Process.whereis(:drop_disc)
+  #     game_pid = Process.whereis(:drop_coin)
   #     reference = Process.monitor(game_pid)
   #     catch_exit do
-  #       Board.drop_disc(game_pid, "1")
+  #       Board.drop_coin(game_pid, "1")
   #     end
   #     assert_received({:DOWN, ^reference, :process, ^game_pid, {%ArgumentError{}, _}})
   #   end
   # end
 
-  describe "drop_disc/2" do
+  describe "drop_coin/3" do
     test "raises an error if argument is not an integer" do
       assert_raise ArgumentError, fn ->
-        {:ok, pid } = Board.start_link
-        Board.drop_disc(pid, "1")
+        # {:ok, pid } = Board.start_link
+        Board.build_board() |>
+        Board.drop_coin(:cross, "1")
       end
     end
 
     #@tag :capture_log
     test "expects and integer" do
-      {:ok, pid } = GenServer.start_link(Board, [])
-      board = Board.drop_disc(pid, 1)
+      board = Board.build_board() |>
+              Board.drop_coin(:cross, 1)
 
       assert Matrix.to_list(board) == [[0,0,0,0,0,0,0,0,0,0],
                                        [0,0,0,0,0,0,0,0,0,0],
@@ -58,17 +59,17 @@ defmodule ConnectFour.Game.BoardTest do
     end
   end
 
-  describe "first_empty_cell/1" do
+  describe "first_empty_index /1" do
     test "finds the index of the first 0 (from right to left) in a vector" do
-      assert Board.first_empty_cell(Vector.new([0,0,0,0])) == 3
-      assert Board.first_empty_cell(Vector.new([0,0,0,1])) == 2
+      assert Board.first_empty_index(Vector.new([0,0,0,0])) == 3
+      assert Board.first_empty_index(Vector.new([0,0,0,1])) == 2
     end
   end
 
   describe "update_column/1" do
     test "replaces the first 0 (from right to left) in a vector" do
-      assert Board.update_column(Vector.new([0,0,0,0])) == Vector.new([0,0,0,1])
-      assert Board.update_column(Vector.new([0,0,0,1])) == Vector.new([0,0,1,1])
+      assert Board.update_column(Vector.new([0,0,0,0]), :cross) == Vector.new([0,0,0,1])
+      assert Board.update_column(Vector.new([0,0,0,1]), :cross) == Vector.new([0,0,1,1])
     end
   end
 
@@ -102,14 +103,58 @@ defmodule ConnectFour.Game.BoardTest do
       fun = fn ->
         Board.print_board(Matrix.new([[0,0,0,0,0,0],[0,0,0,0,0,0]],2,6)) == :ok
       end
-      assert capture_io(fun) == "|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n"
+      assert capture_io(fun) == "- - - - - - - - - - - - - \n|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n"
     end
 
     test "prints the board with occupied cells" do
       fun = fn ->
         Board.print_board(Matrix.new([[0,0,0,0,0,0],[0,0,1,0,2,2]],2,6)) == :ok
       end
-      assert capture_io(fun) == "|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   | x |   | o | o |\n- - - - - - - - - - - - - \n"
+      assert capture_io(fun) == "- - - - - - - - - - - - - \n|   |   |   |   |   |   |\n- - - - - - - - - - - - - \n|   |   | x |   | o | o |\n- - - - - - - - - - - - - \n"
+    end
+  end
+
+  describe "player_sign/1" do
+    test "returns 1 when player is :cross" do
+      assert Board.player_sign(:cross) == 1
+    end
+
+    test "returns 2 when player is :circle" do
+      assert Board.player_sign(:circle) == 2
+    end
+  end
+
+  describe "who_wins?/1" do
+    test "returns :cross when they win" do
+      assert Board.who_wins?(Matrix.new([[1,1,1,1],[0,1,1,0],[0,0,0,0]],3,4)) == :cross
+    end
+
+    test "returns :circle when they win" do
+      assert Board.who_wins?(Matrix.new([[2,2,2,2],[0,1,1,0],[0,0,0,0]],3,4)) == :circle
+    end
+
+    test "returns :noone when nobody wins" do
+      assert Board.who_wins?(Matrix.new([[1,1,1,2],[0,1,1,0],[0,0,0,0]],3,4)) == :noone
+    end
+  end
+
+  describe "winner_is?/1" do
+    test ":cross wins if there are four consecutive 1s" do
+      assert Board.winner_is?(:cross, Matrix.new([[1,1,1,1],[0,1,1,0],[0,0,0,0]],3,4)) == true
+    end
+
+    test ":cross does not win if there are no four consecutive 1s" do
+      assert Board.winner_is?(:cross, Matrix.new([[1,1,2,1],[0,1,1,0],[0,0,0,0]],3,4)) == false
+    end
+  end
+
+  describe "circle_wins?/1" do
+    test ":circle wins if there are four consecutive 2s" do
+      assert Board.winner_is?(:circle, Matrix.new([[2,2,2,2],[0,1,1,0],[0,0,0,0]],3,4)) == true
+    end
+
+    test ":circle does not win if there are no four consecutive 2s" do
+      assert Board.winner_is?(:circle, Matrix.new([[2,2,2,1],[0,1,1,0],[0,0,0,0]],3,4)) == false
     end
   end
 end
